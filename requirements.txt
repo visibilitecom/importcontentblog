@@ -1,3 +1,4 @@
-python-docx
+mammoth
+beautifulsoup4
 requests
 openai
