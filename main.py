@@ -2,8 +2,8 @@ import os
 import zipfile
 import requests
 import openai
-from docx import Document
-from io import BytesIO
+import mammoth
+from bs4 import BeautifulSoup
 
 # === CONFIGURATION ===
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -14,7 +14,7 @@ WP_API_POSTS = f"{WP_SITE}/wp-json/wp/v2/posts"
 WP_API_MEDIA = f"{WP_SITE}/wp-json/wp/v2/media"
 CATEGORIE_ID = 17
 
-ZIP_URL = os.getenv("ZIP_URL")  # Ex: "https://tonsite.com/uploads/articles.zip"
+ZIP_URL = os.getenv("ZIP_URL")
 ZIP_PATH = "articles.zip"
 UPLOAD_FOLDER = "articles_docx"
 
@@ -33,21 +33,23 @@ def extract_zip():
     with zipfile.ZipFile(ZIP_PATH, 'r') as zip_ref:
         zip_ref.extractall(UPLOAD_FOLDER)
 
-# === 3. EXTRAIRE LE CONTENU D'UN DOCX ===
+# === 3. EXTRAIRE ET NETTOYER LE CONTENU .DOCX ===
 def extract_docx_content(path):
-    doc = Document(path)
-    paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    with open(path, "rb") as docx_file:
+        result = mammoth.convert_to_html(docx_file)
+        html = result.value
+        messages = result.messages
 
-    title = paragraphs[0] if paragraphs else "Sans titre"
-    full_text = " ".join(paragraphs[1:]) if len(paragraphs) > 1 else "Pas de contenu"
-    content_html = "<br>".join(paragraphs[1:]) if len(paragraphs) > 1 else full_text
+    title = os.path.basename(path).replace(".docx", "")
 
-    words = full_text.split()
-    meta_description = " ".join(words[:20]) + "..." if len(words) > 20 else full_text
+    soup = BeautifulSoup(html, "html.parser")
+    text_only = soup.get_text()
+    words = text_only.split()
+    meta_description = " ".join(words[:20]) + "..." if len(words) > 20 else text_only.strip()
 
-    return title.strip(), content_html.strip(), meta_description.strip()
+    return title.strip(), html.strip(), meta_description.strip()
 
-# === 4. GÉNÉRER UNE IMAGE AVEC DALL·E ===
+# === 4. GÉNÉRER IMAGE IA ===
 def generate_image(prompt):
     try:
         print("🎨 Génération image IA...")
@@ -88,7 +90,7 @@ def publish_post(title, content, image_id, meta_description):
     data = {
         "title": title,
         "content": content,
-        "status": "draft",  # ← en brouillon
+        "status": "draft",
         "categories": [CATEGORIE_ID],
         "featured_media": image_id,
         "meta": {
