@@ -4,6 +4,7 @@ import requests
 import openai
 import mammoth
 from bs4 import BeautifulSoup
+from unicodedata import normalize  # ✅ Pour nettoyer les noms de fichier
 
 # === CONFIGURATION ===
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -17,6 +18,11 @@ CATEGORIE_ID = 17
 ZIP_URL = os.getenv("ZIP_URL")
 ZIP_PATH = "articles.zip"
 UPLOAD_FOLDER = "articles_docx"
+
+# === Nettoyer le nom du fichier ===
+def sanitize_filename(name):
+    name = normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    return name.replace(" ", "_")
 
 # === 1. TÉLÉCHARGER LE ZIP ===
 def download_zip():
@@ -83,8 +89,9 @@ def generate_image(prompt):
 # === 5. UPLOADER UNE IMAGE SUR WORDPRESS ===
 def upload_image(image_data, filename):
     try:
+        safe_filename = sanitize_filename(filename)
         headers = {
-            "Content-Disposition": f"attachment; filename={filename}",
+            "Content-Disposition": f"attachment; filename={safe_filename}",
             "Content-Type": "image/jpeg"
         }
         response = requests.post(
@@ -94,7 +101,7 @@ def upload_image(image_data, filename):
             auth=(WP_USER, WP_APP_PASSWORD)
         )
         if response.status_code == 201:
-            print(f"✅ Image uploadée : {filename}")
+            print(f"✅ Image uploadée : {safe_filename}")
             return response.json()["id"]
         else:
             print(f"❌ Échec upload image : {response.status_code} - {response.text}")
@@ -151,7 +158,7 @@ if __name__ == "__main__":
         image_data = generate_image(prompt)
 
         if image_data:
-            image_id = upload_image(image_data, f"{title.replace(' ', '_')}.jpg")
+            image_id = upload_image(image_data, f"{title}.jpg")
             if image_id:
                 publish_post(title, content, image_id, meta_desc)
             else:
