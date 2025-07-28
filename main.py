@@ -3,8 +3,9 @@ import zipfile
 import requests
 import openai
 import mammoth
+import re
 from bs4 import BeautifulSoup
-from unicodedata import normalize  # ✅ Pour nettoyer les noms de fichier
+from unicodedata import normalize
 
 # === CONFIGURATION ===
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -19,10 +20,11 @@ ZIP_URL = os.getenv("ZIP_URL")
 ZIP_PATH = "articles.zip"
 UPLOAD_FOLDER = "articles_docx"
 
-# === Nettoyer le nom du fichier ===
+# === NETTOYER LE NOM DE FICHIER ===
 def sanitize_filename(name):
     name = normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
-    return name.replace(" ", "_")
+    name = re.sub(r'[^\w\-_\.]', '_', name)  # remplace tout caractère non valide par "_"
+    return name
 
 # === 1. TÉLÉCHARGER LE ZIP ===
 def download_zip():
@@ -48,13 +50,12 @@ def extract_zip():
     except Exception as e:
         print(f"❌ Erreur extraction ZIP : {e}")
 
-# === 3. EXTRAIRE ET NETTOYER LE CONTENU .DOCX ===
+# === 3. EXTRAIRE LE CONTENU .DOCX ===
 def extract_docx_content(path):
     try:
         with open(path, "rb") as docx_file:
             result = mammoth.convert_to_html(docx_file)
             html = result.value
-            messages = result.messages
 
         title = os.path.basename(path).replace(".docx", "")
         soup = BeautifulSoup(html, "html.parser")
