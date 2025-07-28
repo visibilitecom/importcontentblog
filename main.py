@@ -12,7 +12,7 @@ WP_USER = os.getenv("WP_USER")
 WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD")
 WP_API_POSTS = f"{WP_SITE}/wp-json/wp/v2/posts"
 WP_API_MEDIA = f"{WP_SITE}/wp-json/wp/v2/media"
-CATEGORIE_ID = 1
+CATEGORIE_ID = 17
 
 ZIP_URL = os.getenv("ZIP_URL")  # Ex: "https://tonsite.com/uploads/articles.zip"
 ZIP_PATH = "articles.zip"
